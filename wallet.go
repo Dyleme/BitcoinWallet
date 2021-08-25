@@ -2,13 +2,6 @@ package bitcoinwallet
 
 import "sync"
 
-// Walleter Bad name
-type Walleter interface {
-	Deposit(money float64)
-	Withdraw(money float64)
-	Balance() float64
-}
-
 type Wallet struct {
 	balance float64
 	sync.RWMutex
