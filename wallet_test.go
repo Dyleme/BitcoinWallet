@@ -1,69 +1,122 @@
 package bitcoinwallet
 
 import (
-	"fmt"
-	"strconv"
+	"errors"
 	"testing"
 )
 
 var flagDepositTest = []struct {
-	startMoney   float64
-	addableMoney float64
-	out          float64
+	testName     string
+	startMoney   BitCoin
+	addableMoney BitCoin
+	outMoney     BitCoin
+	outError     error
 }{
-	{12.5, 124, 136.5},
-	{0, 0.34, 0.34},
-	{-34, 43.54, 9.54},
+	{"standard", 12.5, 124, 136.5, nil},
+	{"border", 0, 0.34, 0.34, nil},
+	{"negativeArgument", 34, -1.4, 34, NonPositiveArgumentError{-1.4}},
 }
 
 func TestWallet_Deposit(t *testing.T) {
 	for _, tt := range flagDepositTest {
-		t.Run(fmt.Sprintf("Start %v, add %v", tt.startMoney, tt.addableMoney), func(t *testing.T) {
+		t.Run(tt.testName, func(t *testing.T) {
 			w := Wallet{balance: tt.startMoney}
-			if result := w.Deposit(tt.addableMoney); result != tt.out {
-				t.Errorf("Result want %v, result get %v", tt.out, result)
+			result, err := w.Deposit(tt.addableMoney)
+			if result != tt.outMoney {
+				t.Errorf("Result want %v, result get %v", tt.outMoney, result)
+			}
+			if !errors.Is(err, tt.outError) {
+				t.Errorf("Error want %v, error get %v", tt.outError, err)
 			}
 		})
 	}
 }
 
 var flagWithdrawTest = []struct {
-	startMoney  float64
-	pickedMoney float64
-	out         float64
+	testName    string
+	startMoney  BitCoin
+	pickedMoney BitCoin
+	outMoney    BitCoin
+	outError    error
 }{
-	{136.5, 124, 12.5},
-	{0.34, 0.34, 0},
-	{9.54, 43.54, -34},
+	{"standard", 136.5, 124, 12.5, nil},
+	{"border", 0.34, 0.34, 0, nil},
+	{"NotHaveEnoughMoney", 9.54, 43.54, 9.54, NotHaveEnoughMoneyError{9.54, 43.54}},
+	{"Negative Argument", 34.5, -3.3, 34.5, NonPositiveArgumentError{-3.3}},
 }
 
 func TestWallet_Withdraw(t *testing.T) {
 	for _, tt := range flagWithdrawTest {
-		t.Run(fmt.Sprintf("Start %v, add %v", tt.startMoney, tt.pickedMoney), func(t *testing.T) {
+		t.Run(tt.testName, func(t *testing.T) {
 			w := Wallet{balance: tt.startMoney}
-			if result := w.Withdraw(tt.pickedMoney); result != tt.out {
-				t.Errorf("Result want %v, result get %v", tt.out, result)
+			result, err := w.Withdraw(tt.pickedMoney)
+			if result != tt.outMoney {
+				t.Errorf("Result want %v, result get %v", tt.outMoney, result)
+			}
+			if !errors.Is(err, tt.outError) {
+				t.Errorf("Error want %v, error get %v", tt.outError, err)
 			}
 		})
 	}
 }
 
 var flagBalanceTest = []struct {
-	in  float64
-	out float64
+	testName string
+	inMoney  BitCoin
+	outMoney BitCoin
 }{
-	{12.5, 12.5},
-	{0.34, 0.34},
-	{-9.54, -9.54},
+	{"standard", 12.5, 12.5},
+	{"border", 0.0, 0.0},
 }
 
 func TestWallet_Balance(t *testing.T) {
 	for _, tt := range flagBalanceTest {
-		t.Run(strconv.FormatFloat(tt.in, 'E', -1, 32), func(t *testing.T) {
-			w := Wallet{balance: tt.in}
-			if result := w.Balance(); result != tt.out {
-				t.Errorf("Result want %v, result get %v", tt.out, result)
+		t.Run(tt.testName, func(t *testing.T) {
+			w := Wallet{balance: tt.inMoney}
+			if result := w.Balance(); result != tt.outMoney {
+				t.Errorf("Result want %v, result get %v", tt.outMoney, result)
 			}
 		})
+	}
+}
+
+func TestRaceDeposit(t *testing.T) {
+	wallet := Wallet{balance: BitCoin(13.5)}
+
+	for i := 0; i < 1000; i++ {
+		go func() {
+			_, err := wallet.Deposit(3.2)
+			if err != nil {
+				t.Errorf("Error in RaceDeposit %v", err)
+			}
+		}()
+		go wallet.Balance()
+	}
+}
+
+func TestRaceBalance(t *testing.T) {
+	wallet := Wallet{balance: BitCoin(123.5)}
+	for i := 0; i < 1000; i++ {
+		go wallet.Balance()
+		go wallet.Balance()
+	}
+}
+
+func TestRaceWithdraw(t *testing.T) {
+	wallet := Wallet{balance: BitCoin(13.5)}
+
+	for i := 0; i < 1000; i++ {
+		go func() {
+			_, err := wallet.Withdraw(1.5)
+			if err != nil {
+				t.Errorf("Error in RaceWithDraw %v", err)
+			}
+		}()
+		go func() {
+			_, err := wallet.Deposit(3.5)
+			if err != nil {
+				t.Errorf("Error in RaceWitdDraw %v", err)
+			}
+		}()
 	}
 }
