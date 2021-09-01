@@ -16,8 +16,8 @@ var (
 // BitCoin is type that holds bitcoins.
 type BitCoin float64
 
-func (p *BitCoin) String() string {
-	return fmt.Sprintf("%v BitCoins", *p)
+func (p BitCoin) String() string {
+	return fmt.Sprintf("%v BitCoins", float64(p))
 }
 
 // Wallet is type that holds BitCoins and provides
