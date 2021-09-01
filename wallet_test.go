@@ -30,10 +30,10 @@ func TestWallet_Deposit(t *testing.T) {
 			w := bw.NewWallet(tc.startMoney)
 			result, err := w.Deposit(tc.addableMoney)
 			if result != tc.outMoney {
-				t.Errorf("Result want %v, result get %v", tc.outMoney, result)
+				t.Errorf("wallet: want result %v, get result %v", tc.outMoney, result)
 			}
 			if !errors.Is(err, tc.outError) {
-				t.Errorf("Error want %v, error get %v", tc.outError, err)
+				t.Errorf("wallet: want error %v, get error %v", tc.outError, err)
 			}
 		})
 	}
@@ -62,10 +62,10 @@ func TestWallet_Withdraw(t *testing.T) {
 			w := bw.NewWallet(tc.startMoney)
 			result, err := w.Withdraw(tc.pickedMoney)
 			if result != tc.outMoney {
-				t.Errorf("Result want %v, result get %v", tc.outMoney, result)
+				t.Errorf("wallet: want result %v, get result %v", tc.outMoney, result)
 			}
 			if !errors.Is(err, tc.outError) {
-				t.Errorf("Error want %v, error get %v", tc.outError, err)
+				t.Errorf("wallet: want error %v, get error %v", tc.outError, err)
 			}
 		})
 	}
@@ -89,26 +89,28 @@ func TestWallet_Balance(t *testing.T) {
 			t.Parallel()
 			w := bw.NewWallet(tc.inMoney)
 			if result := w.Balance(); result != tc.outMoney {
-				t.Errorf("Result want %v, result get %v", tc.outMoney, result)
+				t.Errorf("wallet: want result %v, get result %v", tc.outMoney, result)
 			}
 		})
 	}
 }
 
 func TestRaceDeposit(t *testing.T) {
+	t.Parallel()
+
 	wallet := bw.NewWallet(13.5)
 
 	var wg sync.WaitGroup
 
-	wg.Add(2000)
-
 	for i := 0; i < 1000; i++ {
+		wg.Add(2)
+
 		go func() {
 			defer wg.Done()
 
-			_, err := wallet.Deposit(3.2)
+			_, err := wallet.Deposit(0.5)
 			if err != nil {
-				t.Errorf("Error in RaceDeposit %v", err)
+				t.Errorf("wallet: error in racedeposit %v", err)
 			}
 		}()
 		go func() {
@@ -117,38 +119,26 @@ func TestRaceDeposit(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-}
 
-func TestRaceBalance(t *testing.T) {
-	wallet := bw.NewWallet(123.5)
-
-	var wg sync.WaitGroup
-
-	wg.Add(2000)
-
-	for i := 0; i < 1000; i++ {
-		var balanceFunc = func() {
-			wallet.Balance()
-			wg.Done()
-		}
-		go balanceFunc()
-		go balanceFunc()
+	if wallet.Balance() != 513.5 {
+		t.Errorf("wallet: concurrent results of deposit don't converge")
 	}
-	wg.Wait()
 }
 
-func TestRaceWithdraw(t *testing.T) {
+func TestRaceWithdrawAndDeposit(t *testing.T) {
+	t.Parallel()
+
 	wallet := bw.NewWallet(1000)
 
 	var wg sync.WaitGroup
 
-	wg.Add(2000)
-
 	for i := 0; i < 1000; i++ {
+		wg.Add(2)
+
 		go func() {
 			_, err := wallet.Withdraw(1)
 			if err != nil {
-				t.Errorf("Error in RaceWithDraw %v", err)
+				t.Errorf("wallet: error in racewithdrawanddepit %v", err)
 			}
 
 			wg.Done()
@@ -156,7 +146,7 @@ func TestRaceWithdraw(t *testing.T) {
 		go func() {
 			_, err := wallet.Deposit(1)
 			if err != nil {
-				t.Errorf("Error in RaceWitdDraw %v", err)
+				t.Errorf("wallet: error in racewitddrawanddeposit %v", err)
 			}
 
 			wg.Done()
@@ -166,6 +156,6 @@ func TestRaceWithdraw(t *testing.T) {
 	wg.Wait()
 
 	if wallet.Balance() != 1000 {
-		t.Errorf("Results don't converge")
+		t.Errorf("wallet: concurrent results of withdraw and deposit don't converge")
 	}
 }
