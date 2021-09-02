@@ -20,14 +20,22 @@ func TestWallet_Deposit(t *testing.T) {
 	}{
 		{"standard", 12.5, 124, 136.5, nil},
 		{"border", 0, 0.34, 0.34, nil},
-		{"Not positive argument", 34, -1.4, 34, bw.ErrNotPositiveArgumentError},
+		{"not positive argument", 34, -1.4, 34, bw.ErrNotPositiveArgumentError},
+		{"zero argument", 23, 0, 23, bw.ErrNotPositiveArgumentError},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
-			w := bw.NewWallet(tc.startMoney)
+			w := bw.NewWallet()
+
+			if tc.startMoney != 0 {
+				_, deposeErr := w.Deposit(tc.startMoney)
+				if deposeErr != nil {
+					t.Errorf("wallet: error %v", deposeErr)
+				}
+			}
 			result, err := w.Deposit(tc.addableMoney)
 			if result != tc.outMoney {
 				t.Errorf("wallet: want result %v, get result %v", tc.outMoney, result)
@@ -51,15 +59,22 @@ func TestWallet_Withdraw(t *testing.T) {
 	}{
 		{"standard", 136.5, 124, 12.5, nil},
 		{"border", 0.34, 0.34, 0, nil},
-		{"NotHaveEnoughFunds", 9.54, 43.54, 9.54, bw.ErrNotHaveEnoughFundsError},
-		{"Not positive argument", 34.5, -3.3, 34.5, bw.ErrNotPositiveArgumentError},
+		{"doesn't have enough funds", 9.54, 43.54, 9.54, bw.ErrNotHaveEnoughFundsError},
+		{"have exact amount of funds", 5.6, 5.6, 0, nil},
+		{"not positive argument", 34.5, -3.3, 34.5, bw.ErrNotPositiveArgumentError},
+		{"zero argument", 23.1, 0, 23.1, bw.ErrNotPositiveArgumentError},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
-			w := bw.NewWallet(tc.startMoney)
+			w := bw.NewWallet()
+			_, deposeErr := w.Deposit(tc.startMoney)
+			if deposeErr != nil {
+				return
+			}
+
 			result, err := w.Withdraw(tc.pickedMoney)
 			if result != tc.outMoney {
 				t.Errorf("wallet: want result %v, get result %v", tc.outMoney, result)
@@ -87,8 +102,15 @@ func TestWallet_Balance(t *testing.T) {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
-			w := bw.NewWallet(tc.inMoney)
-			if result := w.Balance(); result != tc.outMoney {
+			wallet := bw.NewWallet()
+
+			if tc.inMoney != 0 {
+				_, err := wallet.Deposit(tc.inMoney)
+				if err != nil {
+					t.Errorf("wallet: error in racewithdraw %v", err)
+				}
+			}
+			if result := wallet.Balance(); result != tc.outMoney {
 				t.Errorf("wallet: want result %v, get result %v", tc.outMoney, result)
 			}
 		})
@@ -98,7 +120,12 @@ func TestWallet_Balance(t *testing.T) {
 func TestRaceDeposit(t *testing.T) {
 	t.Parallel()
 
-	wallet := bw.NewWallet(13.5)
+	wallet := bw.NewWallet()
+
+	_, err := wallet.Deposit(13.5)
+	if err != nil {
+		t.Errorf("wallet: error in racewithdraw %v", err)
+	}
 
 	var wg sync.WaitGroup
 
@@ -128,7 +155,12 @@ func TestRaceDeposit(t *testing.T) {
 func TestRaceWithdrawAndDeposit(t *testing.T) {
 	t.Parallel()
 
-	wallet := bw.NewWallet(1000)
+	wallet := bw.NewWallet()
+
+	_, err := wallet.Deposit(1000)
+	if err != nil {
+		t.Errorf("wallet: error in racewithdraw %v", err)
+	}
 
 	var wg sync.WaitGroup
 

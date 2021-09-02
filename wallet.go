@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrNotHaveEnoughFundsError  = errors.New("not have enough funds")
-	ErrNotPositiveArgumentError = errors.New("not positive error")
+	ErrNotPositiveArgumentError = errors.New("not positive argument")
 )
 
 // BitCoin is type that holds bitcoins.
@@ -33,7 +33,7 @@ type Wallet struct {
 // If after withdraw balance is negative, method will return NotHaveEnoughMoneyError.
 func (w *Wallet) Withdraw(coins BitCoin) (BitCoin, error) {
 	if coins <= 0 {
-		return w.balance, fmt.Errorf("withdraw: %w, amount = %v", ErrNotPositiveArgumentError, coins)
+		return w.balance, fmt.Errorf("withdraw: %w, withdraw funds = %v", ErrNotPositiveArgumentError, coins)
 	}
 
 	w.mx.Lock()
@@ -45,7 +45,7 @@ func (w *Wallet) Withdraw(coins BitCoin) (BitCoin, error) {
 		return w.balance, nil
 	}
 
-	return w.balance, fmt.Errorf("withdraw: %w, funds amount %v, want to withdraw %v", ErrNotHaveEnoughFundsError, w.balance, coins)
+	return w.balance, fmt.Errorf("withdraw: %w, funds amount %v, withdraw funds %v", ErrNotHaveEnoughFundsError, w.balance, coins)
 }
 
 // Deposit method provides method to deposit BitCoins from the wallet
@@ -53,7 +53,7 @@ func (w *Wallet) Withdraw(coins BitCoin) (BitCoin, error) {
 // The argument should be positive, if its not method will return NonPositiveArgumentError.
 func (w *Wallet) Deposit(coins BitCoin) (BitCoin, error) {
 	if coins <= 0 {
-		return w.balance, fmt.Errorf("depost: %w, funds amount = %v", ErrNotPositiveArgumentError, coins)
+		return w.balance, fmt.Errorf("deposit: %w, deposit funds = %v", ErrNotPositiveArgumentError, coins)
 	}
 
 	w.mx.Lock()
@@ -73,6 +73,6 @@ func (w *Wallet) Balance() BitCoin {
 }
 
 // NewWallet make instance of wallet.
-func NewWallet(coins BitCoin) Wallet {
-	return Wallet{balance: coins}
+func NewWallet() Wallet {
+	return Wallet{}
 }
