@@ -10,7 +10,7 @@ To download this package write `go get github.com/Dyleme/BitcoinWallet.git` in y
 To initialize your wallet, in the arguments you should provide amount of BitCoins that you would like to have in your wallet
 To do it you have to use struct BitCoin
 ```go
-    var wallet = NewWallet{23.4}
+    var wallet = NewWallet()
 ```
 
 ### Balance, Deposit, Withdraw
